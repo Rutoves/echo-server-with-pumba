@@ -37,7 +37,8 @@ while True:
         sock.sendto(b'Hi', addr)
         continue
 
-    heapq.heappush(message_heap, (seq_num, data))
+    if seq_num >= cur_seq_num:
+        heapq.heappush(message_heap, (seq_num, data))
 
     while message_heap and message_heap[0][0] == cur_seq_num:
         cur_message = heapq.heappop(message_heap)
