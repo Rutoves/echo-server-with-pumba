@@ -5,21 +5,62 @@ services:
     restart: always
     container_name: client
     build: client/
+    volumes:
+      - ./client:/app
     command: python client.py server 1200
     networks:
     - app-net
     ports:
-      - "1234:1234/udp"
+      - "1234:1200/udp"
 
   server:
     restart: always
     container_name: server
+    volumes:
+      - ./server:/app
     build: server/
-    command: python server.py client 1234
+    command: python server.py client 1200
     networks:
     - app-net
     ports:
     - "1200:1200/udp"
+
+  client-delay:
+    image: gaiaadm/pumba
+    depends_on:
+      - client
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: "netem --tc-image gaiadocker/iproute2 --duration 200s delay --time 5000 re2:client"
+
+  client-corrupt:
+    image: gaiaadm/pumba
+    depends_on:
+      - client
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: "netem --tc-image gaiadocker/iproute2 --duration 200s corrupt --percent 10 re2:client"
+
+  client-loss:
+    image: gaiaadm/pumba
+    depends_on:
+      - client
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: "netem --tc-image gaiadocker/iproute2 --duration 200s loss --percent 10 re2:client"
+
+
+  test:
+    build: .
+    depends_on:
+      - client
+      - server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app
+    command: python pumba-test.py
+    networks:
+      - app-net
 
 networks:
   app-net:

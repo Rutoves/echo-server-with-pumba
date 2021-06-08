@@ -14,7 +14,7 @@ port = namespace.port
 logging.basicConfig(format='[%(asctime)s | %(levelname)s]: %(message)s', datefmt='%m.%d.%Y %H:%M:%S',
                     level=logging.INFO)
 
-addr = (host, port)
+addr = ("", port)
 
 sock = socket(AF_INET, SOCK_DGRAM)
 sock.bind(addr)
@@ -22,28 +22,32 @@ sock.bind(addr)
 message_heap = []
 cur_seq_num = 0
 
-while True:
-    logging.info('wait data...')
+with open('server.log', 'w') as log_file:
+    while True:
+        logging.info('wait data...')
 
-    conn, addr = sock.recvfrom(4096)
-    if not conn:
-        break
+        conn, addr = sock.recvfrom(4096)
+        if not conn:
+            break
 
-    try:
-        data = bytes.decode(conn)
-        seq_num = int(data[:data.find(' ')])
-    except:
-        logging.info('Message without info')
-        sock.sendto(b'Hi', addr)
-        continue
+        try:
+            data = bytes.decode(conn)
+            seq_num = int(data[:data.find(' ')])
+        except:
+            logging.info('Message without info')
+            sock.sendto(b'Hi', addr)
+            continue
 
-    if seq_num >= cur_seq_num:
-        heapq.heappush(message_heap, (seq_num, data))
+        sock.sendto(str.encode(data), addr)
 
-    while message_heap and message_heap[0][0] == cur_seq_num:
-        cur_message = heapq.heappop(message_heap)
-        logging.info(f'Server received: {cur_message[1]}')
-        sock.sendto(str.encode(cur_message[1]), addr)
-        cur_seq_num += 1
+        if seq_num >= cur_seq_num:
+            heapq.heappush(message_heap, (seq_num, data))
 
-sock.close()
+        while message_heap and message_heap[0][0] == cur_seq_num:
+            cur_message = heapq.heappop(message_heap)
+            logging.info(f'Server received: "{cur_message[1]}"')
+            log_file.write(f'{cur_message[1]}\n')
+            log_file.flush()
+            cur_seq_num += 1
+
+    sock.close()
